@@ -23,7 +23,7 @@ class ApiClient {
 
   constructor() {
     this.client = axios.create({
-      baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
+      baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5009/api',
       timeout: 10000,
       withCredentials: true, // Important for refresh token cookies
       headers: {
