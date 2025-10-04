@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { X, Calendar, User, Tag } from 'lucide-react';
+import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -154,13 +155,17 @@ const TaskModal: React.FC<TaskModalProps> = ({
           id: task._id,
           data: taskData,
         });
+        toast.success('Task updated successfully!');
       } else {
         await createTaskMutation.mutateAsync(taskData);
+        toast.success('Task created successfully!');
       }
 
       onSave();
     } catch (err) {
-      setError(handleApiError(err));
+      const errorMessage = handleApiError(err);
+      setError(errorMessage);
+      toast.error(errorMessage);
     }
   };
 
@@ -310,13 +315,13 @@ const TaskModal: React.FC<TaskModalProps> = ({
                       className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-muted rounded-full"
                     >
                       {tag}
-                      <button
+                      <Button
                         type="button"
                         onClick={() => removeTag(tag)}
                         className="hover:text-destructive"
                       >
                         <X className="w-3 h-3" />
-                      </button>
+                      </Button>
                     </span>
                   ))}
                 </div>

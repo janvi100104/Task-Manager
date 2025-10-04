@@ -1,6 +1,7 @@
 import React from 'react';
 import { formatDistanceToNow, parseISO, format } from 'date-fns';
 import { Calendar, User, MoreHorizontal, CheckCircle, Circle, Clock, Edit2, Trash2, Copy } from 'lucide-react';
+import { toast } from 'sonner';
 
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -74,7 +75,9 @@ const TaskCard: React.FC<TaskCardProps> = ({
       'in-progress': 'completed',
       completed: 'pending',
     };
-    onStatusChange(task._id, nextStatus[task.status]);
+    const newStatus = nextStatus[task.status];
+    
+    onStatusChange(task._id, newStatus);
   };
 
   const handleEditClick = (e: React.MouseEvent) => {
@@ -85,6 +88,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
   const handleDeleteClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (window.confirm('Are you sure you want to delete this task? This action cannot be undone.')) {
+      // Don't show toast here - let the async operation handle it
       onDelete(task._id);
     }
   };
@@ -92,7 +96,10 @@ const TaskCard: React.FC<TaskCardProps> = ({
   const handleDuplicateClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (onDuplicate) {
+      // Don't show toast here - let the async operation handle it
       onDuplicate(task);
+    } else {
+      toast.error('Duplicate functionality not available');
     }
   };
 

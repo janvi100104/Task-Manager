@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 
 import PriorityColumn from '@/components/PriorityColumn';
 import { useBoardData, useDeleteTask, useUpdateTaskStatus, useDuplicateTask } from '@/hooks/useTasks';
@@ -28,30 +29,32 @@ const PriorityBoard: React.FC<PriorityBoardProps> = ({ onAddTask, onEditTask, on
   const handleStatusChange = async (taskId: string, status: Status) => {
     try {
       await updateTaskStatusMutation.mutateAsync({ id: taskId, status });
+      toast.success(`Task status updated to ${status.replace('-', ' ')}`);
     } catch (error) {
       console.error('Failed to update task status:', error);
-      // You might want to show a toast notification here
+      toast.error('Failed to update task status. Please try again.');
     }
   };
 
   const handleDeleteTask = async (taskId: string) => {
-    // Show confirmation dialog
-    if (window.confirm('Are you sure you want to delete this task? This action cannot be undone.')) {
-      try {
-        await deleteTaskMutation.mutateAsync(taskId);
-      } catch (error) {
-        console.error('Failed to delete task:', error);
-        // You might want to show a toast notification here
-      }
+    // Confirmation dialog is shown in TaskCard
+    try {
+      await deleteTaskMutation.mutateAsync(taskId);
+      toast.success('Task deleted successfully');
+    } catch (error) {
+      console.error('Failed to delete task:', error);
+      toast.error('Failed to delete task. Please try again.');
     }
   };
 
   const handleDuplicateTask = async (task: ITask) => {
     try {
-      await duplicateTaskMutation.mutateAsync(task._id);
+      const duplicatedTask = await duplicateTaskMutation.mutateAsync(task._id);
+      toast.success('Task duplicated successfully');
+      console.log('Task duplicated:', duplicatedTask);
     } catch (error) {
       console.error('Failed to duplicate task:', error);
-      // You might want to show a toast notification here
+      toast.error('Failed to duplicate task. Please try again.');
     }
   };
 

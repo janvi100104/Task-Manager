@@ -45,7 +45,7 @@ const TaskDetailPage: React.FC = () => {
       <AppShell onAddTask={() => {}}>
         <div className="flex flex-col items-center justify-center h-64 space-y-4">
           <p className="text-muted-foreground">Task not found or failed to load</p>
-          <Button onClick={() => navigate('/')} variant="outline">
+          <Button onClick={() => navigate('/dashboard')} variant="outline">
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Dashboard
           </Button>
@@ -64,7 +64,7 @@ const TaskDetailPage: React.FC = () => {
         <div className="flex items-center justify-between">
           <Button
             variant="ghost"
-            onClick={() => navigate('/')}
+            onClick={() => navigate('/dashboard')}
             className="gap-2"
           >
             <ArrowLeft className="w-4 h-4" />
