@@ -1,0 +1,110 @@
+# Project-wide gitignore for TaskFlow Task Management System
+
+# Dependencies
+node_modules/
+*/node_modules/
+
+# Environment variables (CRITICAL - Contains sensitive data)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*/.env
+*/.env.local
+*/.env.development.local
+*/.env.test.local
+*/.env.production.local
+
+# Build outputs
+dist/
+build/
+out/
+*/dist/
+*/build/
+*/out/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory
+coverage/
+.nyc_output/
+
+# Package manager files
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+.yarn/
+
+# Cache directories
+.cache/
+.eslintcache
+.stylelintcache
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Temporary files
+.tmp/
+.temp/
+*.tmp
+*.temp
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Security files
+*.pem
+*.key
+*.cert
+*.crt
+
+# Documentation builds
+docs/build/
+
+# Local development
+.local
+
+# Firebase
+.firebase/
+
+# Docker
+.docker/
+docker-compose.override.yml
+
+# Monitoring
+.newrelic/
+.sentryclirc
+
+# Backup files
+*.backup
+*.bak
+*.old

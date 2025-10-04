@@ -173,7 +173,7 @@ export const useUpdateTaskPriority = () => {
         
         // Find and remove task from current priority
         Object.entries(previousBoardData).forEach(([priority, column]) => {
-          const taskIndex = column.tasks.findIndex(task => task._id === id);
+          const taskIndex = column.tasks.findIndex((task: ITask) => task._id === id);
           if (taskIndex !== -1) {
             movedTask = column.tasks[taskIndex];
             sourcePriority = priority as Priority;
@@ -186,7 +186,7 @@ export const useUpdateTaskPriority = () => {
           // Remove from source
           newBoardData[sourcePriority] = {
             ...newBoardData[sourcePriority],
-            tasks: newBoardData[sourcePriority].tasks.filter(task => task._id !== id),
+            tasks: newBoardData[sourcePriority].tasks.filter((task: ITask) => task._id !== id),
             totalCount: newBoardData[sourcePriority].totalCount - 1,
           };
           
@@ -219,6 +219,43 @@ export const useUpdateTaskPriority = () => {
   });
 };
 
+// Duplicate task mutation
+export const useDuplicateTask = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => apiClient.duplicateTask(id),
+    onSuccess: (newTask) => {
+      // Invalidate and refetch board data
+      queryClient.invalidateQueries({ queryKey: taskKeys.board() });
+      
+      // Invalidate tasks lists
+      queryClient.invalidateQueries({ queryKey: taskKeys.lists() });
+      
+      // Invalidate stats
+      queryClient.invalidateQueries({ queryKey: taskKeys.stats() });
+      
+      // Optimistically update board data
+      queryClient.setQueryData<BoardData>(taskKeys.board(), (oldData) => {
+        if (!oldData) return oldData;
+        
+        const priority = newTask.priority;
+        return {
+          ...oldData,
+          [priority]: {
+            ...oldData[priority],
+            tasks: [newTask, ...oldData[priority].tasks],
+            totalCount: oldData[priority].totalCount + 1,
+          },
+        };
+      });
+    },
+    onError: (error) => {
+      throw new Error(handleApiError(error));
+    },
+  });
+};
+
 // Delete task mutation
 export const useDeleteTask = () => {
   const queryClient = useQueryClient();
@@ -237,11 +274,11 @@ export const useDeleteTask = () => {
         const newBoardData = { ...previousBoardData };
         
         Object.entries(newBoardData).forEach(([priority, column]) => {
-          const taskIndex = column.tasks.findIndex(task => task._id === id);
+          const taskIndex = column.tasks.findIndex((task: ITask) => task._id === id);
           if (taskIndex !== -1) {
             newBoardData[priority as Priority] = {
               ...column,
-              tasks: column.tasks.filter(task => task._id !== id),
+              tasks: column.tasks.filter((task: ITask) => task._id !== id),
               totalCount: column.totalCount - 1,
             };
           }

@@ -6,6 +6,7 @@ const {
   updateTask,
   updateTaskStatus,
   updateTaskPriority,
+  duplicateTask,
   deleteTask,
   getTaskStats
 } = require('../controllers/taskController');
@@ -34,6 +35,9 @@ router.route('/:id')
   .get(getTask)
   .put(validateTask, updateTask)
   .delete(deleteTask);
+
+router.route('/:id/duplicate')
+  .post(duplicateTask);
 
 router.route('/:id/status')
   .patch(validateTaskStatus, updateTaskStatus);

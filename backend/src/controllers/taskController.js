@@ -336,48 +336,29 @@ const createTask = async (req, res, next) => {
  */
 const updateTask = async (req, res, next) => {
   try {
-    let task = await Task.findById(req.params.id);
+    const isMongoConnected = mongoose.connection.readyState === 1 && Task && User;
+    let task;
 
-    if (!task) {
-      return res.status(404).json({
-        success: false,
-        error: 'Task not found'
-      });
-    }
+    if (isMongoConnected) {
+      // MongoDB implementation
+      task = await Task.findById(req.params.id);
 
-    // Check if user can modify this task
-    if (!req.checkOwnership(task)) {
-      return res.status(403).json({
-        success: false,
-        error: 'Access denied. You can only modify tasks assigned to you or created by you.'
-      });
-    }
-
-    const {
-      title,
-      description,
-      dueDate,
-      priority,
-      status,
-      assignee,
-      tags
-    } = req.body;
-
-    // If assignee is being changed, verify the new assignee exists
-    if (assignee && assignee !== task.assignee.toString()) {
-      const assigneeUser = await User.findById(assignee);
-      if (!assigneeUser) {
+      if (!task) {
         return res.status(404).json({
           success: false,
-          error: 'Assignee user not found'
+          error: 'Task not found'
         });
       }
-    }
 
-    // Update task
-    task = await Task.findByIdAndUpdate(
-      req.params.id,
-      {
+      // Check if user can modify this task
+      if (!req.checkOwnership(task)) {
+        return res.status(403).json({
+          success: false,
+          error: 'Access denied. You can only modify tasks assigned to you or created by you.'
+        });
+      }
+
+      const {
         title,
         description,
         dueDate,
@@ -385,22 +366,133 @@ const updateTask = async (req, res, next) => {
         status,
         assignee,
         tags
-      },
-      {
-        new: true,
-        runValidators: true
-      }
-    )
-    .populate('assignee', 'name email avatarUrl')
-    .populate('createdBy', 'name email avatarUrl');
+      } = req.body;
 
-    res.status(200).json({
-      success: true,
-      message: 'Task updated successfully',
-      data: {
-        task
+      // If assignee is being changed, verify the new assignee exists
+      if (assignee && assignee !== task.assignee.toString()) {
+        const assigneeUser = await User.findById(assignee);
+        if (!assigneeUser) {
+          return res.status(404).json({
+            success: false,
+            error: 'Assignee user not found'
+          });
+        }
       }
-    });
+
+      // Update task
+      task = await Task.findByIdAndUpdate(
+        req.params.id,
+        {
+          title,
+          description,
+          dueDate,
+          priority,
+          status,
+          assignee,
+          tags
+        },
+        {
+          new: true,
+          runValidators: true
+        }
+      )
+      .populate('assignee', 'name email avatarUrl')
+      .populate('createdBy', 'name email avatarUrl');
+
+      res.status(200).json({
+        success: true,
+        message: 'Task updated successfully',
+        data: {
+          task
+        }
+      });
+    } else {
+      // Memory store implementation
+      task = memoryStore.tasks.findById(req.params.id);
+
+      if (!task) {
+        return res.status(404).json({
+          success: false,
+          error: 'Task not found'
+        });
+      }
+
+      // Check if user can modify this task
+      const canModify = task.assignee == req.user._id || task.createdBy == req.user._id;
+      if (!canModify) {
+        return res.status(403).json({
+          success: false,
+          error: 'Access denied. You can only modify tasks assigned to you or created by you.'
+        });
+      }
+
+      const {
+        title,
+        description,
+        dueDate,
+        priority,
+        status,
+        assignee,
+        tags
+      } = req.body;
+
+      // If assignee is being changed, verify the new assignee exists
+      if (assignee && assignee !== task.assignee) {
+        const assigneeUser = memoryStore.users.findById(assignee);
+        if (!assigneeUser) {
+          return res.status(404).json({
+            success: false,
+            error: 'Assignee user not found'
+          });
+        }
+      }
+
+      // Update task in memory store
+      const updatedTask = memoryStore.tasks.update(req.params.id, {
+        title,
+        description,
+        dueDate,
+        priority,
+        status,
+        assignee,
+        tags
+      });
+
+      if (!updatedTask) {
+        return res.status(404).json({
+          success: false,
+          error: 'Task not found'
+        });
+      }
+
+      // Add assignee and creator info
+      const assigneeInfo = memoryStore.users.findById(updatedTask.assignee);
+      const createdByInfo = memoryStore.users.findById(updatedTask.createdBy);
+      
+      const responseTask = {
+        ...updatedTask,
+        assignee: assigneeInfo ? {
+          _id: assigneeInfo._id,
+          name: assigneeInfo.name,
+          email: assigneeInfo.email,
+          avatarUrl: assigneeInfo.avatarUrl
+        } : null,
+        createdBy: createdByInfo ? {
+          _id: createdByInfo._id,
+          name: createdByInfo.name,
+          email: createdByInfo.email,
+          avatarUrl: createdByInfo.avatarUrl
+        } : null
+      };
+
+      res.status(200).json({
+        success: true,
+        message: 'Task updated successfully (demo mode)',
+        data: {
+          task: responseTask
+        }
+      });
+    }
   } catch (error) {
     next(error);
   }
@@ -414,42 +506,103 @@ const updateTask = async (req, res, next) => {
 const updateTaskStatus = async (req, res, next) => {
   try {
     const { status } = req.body;
+    const isMongoConnected = mongoose.connection.readyState === 1 && Task;
+    let task;
 
-    let task = await Task.findById(req.params.id);
+    if (isMongoConnected) {
+      // MongoDB implementation
+      task = await Task.findById(req.params.id);
 
-    if (!task) {
-      return res.status(404).json({
-        success: false,
-        error: 'Task not found'
+      if (!task) {
+        return res.status(404).json({
+          success: false,
+          error: 'Task not found'
+        });
+      }
+
+      // Check if user can modify this task
+      if (!req.checkOwnership(task)) {
+        return res.status(403).json({
+          success: false,
+          error: 'Access denied. You can only modify tasks assigned to you or created by you.'
+        });
+      }
+
+      task = await Task.findByIdAndUpdate(
+        req.params.id,
+        { status },
+        {
+          new: true,
+          runValidators: true
+        }
+      )
+      .populate('assignee', 'name email avatarUrl')
+      .populate('createdBy', 'name email avatarUrl');
+
+      res.status(200).json({
+        success: true,
+        message: 'Task status updated successfully',
+        data: {
+          task
+        }
+      });
+    } else {
+      // Memory store implementation
+      task = memoryStore.tasks.findById(req.params.id);
+
+      if (!task) {
+        return res.status(404).json({
+          success: false,
+          error: 'Task not found'
+        });
+      }
+
+      // Check if user can modify this task
+      const canModify = task.assignee == req.user._id || task.createdBy == req.user._id;
+      if (!canModify) {
+        return res.status(403).json({
+          success: false,
+          error: 'Access denied. You can only modify tasks assigned to you or created by you.'
+        });
+      }
+
+      const updatedTask = memoryStore.tasks.update(req.params.id, { status });
+
+      if (!updatedTask) {
+        return res.status(404).json({
+          success: false,
+          error: 'Task not found'
+        });
+      }
+
+      // Add assignee and creator info
+      const assigneeInfo = memoryStore.users.findById(updatedTask.assignee);
+      const createdByInfo = memoryStore.users.findById(updatedTask.createdBy);
+      
+      const responseTask = {
+        ...updatedTask,
+        assignee: assigneeInfo ? {
+          _id: assigneeInfo._id,
+          name: assigneeInfo.name,
+          email: assigneeInfo.email,
+          avatarUrl: assigneeInfo.avatarUrl
+        } : null,
+        createdBy: createdByInfo ? {
+          _id: createdByInfo._id,
+          name: createdByInfo.name,
+          email: createdByInfo.email,
+          avatarUrl: createdByInfo.avatarUrl
+        } : null
+      };
+
+      res.status(200).json({
+        success: true,
+        message: 'Task status updated successfully (demo mode)',
+        data: {
+          task: responseTask
+        }
       });
     }
-
-    // Check if user can modify this task
-    if (!req.checkOwnership(task)) {
-      return res.status(403).json({
-        success: false,
-        error: 'Access denied. You can only modify tasks assigned to you or created by you.'
-      });
-    }
-
-    task = await Task.findByIdAndUpdate(
-      req.params.id,
-      { status },
-      {
-        new: true,
-        runValidators: true
-      }
-    )
-    .populate('assignee', 'name email avatarUrl')
-    .populate('createdBy', 'name email avatarUrl');
-
-    res.status(200).json({
-      success: true,
-      message: 'Task status updated successfully',
-      data: {
-        task
-      }
-    });
   } catch (error) {
     next(error);
   }
@@ -463,48 +616,258 @@ const updateTaskStatus = async (req, res, next) => {
 const updateTaskPriority = async (req, res, next) => {
   try {
     const { priority, position } = req.body;
+    const isMongoConnected = mongoose.connection.readyState === 1 && Task;
+    let task;
 
-    let task = await Task.findById(req.params.id);
+    if (isMongoConnected) {
+      // MongoDB implementation
+      task = await Task.findById(req.params.id);
 
-    if (!task) {
+      if (!task) {
+        return res.status(404).json({
+          success: false,
+          error: 'Task not found'
+        });
+      }
+
+      // Check if user can modify this task
+      if (!req.checkOwnership(task)) {
+        return res.status(403).json({
+          success: false,
+          error: 'Access denied. You can only modify tasks assigned to you or created by you.'
+        });
+      }
+
+      // Update task priority and position
+      const updateData = { priority };
+      if (position !== undefined) {
+        updateData.position = position;
+      }
+
+      task = await Task.findByIdAndUpdate(
+        req.params.id,
+        updateData,
+        {
+          new: true,
+          runValidators: true
+        }
+      )
+      .populate('assignee', 'name email avatarUrl')
+      .populate('createdBy', 'name email avatarUrl');
+
+      res.status(200).json({
+        success: true,
+        message: 'Task priority updated successfully',
+        data: {
+          task
+        }
+      });
+    } else {
+      // Memory store implementation
+      task = memoryStore.tasks.findById(req.params.id);
+
+      if (!task) {
+        return res.status(404).json({
+          success: false,
+          error: 'Task not found'
+        });
+      }
+
+      // Check if user can modify this task
+      const canModify = task.assignee == req.user._id || task.createdBy == req.user._id;
+      if (!canModify) {
+        return res.status(403).json({
+          success: false,
+          error: 'Access denied. You can only modify tasks assigned to you or created by you.'
+        });
+      }
+
+      // Update task priority and position
+      const updateData = { priority };
+      if (position !== undefined) {
+        updateData.position = position;
+      }
+
+      const updatedTask = memoryStore.tasks.update(req.params.id, updateData);
+
+      if (!updatedTask) {
+        return res.status(404).json({
+          success: false,
+          error: 'Task not found'
+        });
+      }
+
+      // Add assignee and creator info
+      const assigneeInfo = memoryStore.users.findById(updatedTask.assignee);
+      const createdByInfo = memoryStore.users.findById(updatedTask.createdBy);
+      
+      const responseTask = {
+        ...updatedTask,
+        assignee: assigneeInfo ? {
+          _id: assigneeInfo._id,
+          name: assigneeInfo.name,
+          email: assigneeInfo.email,
+          avatarUrl: assigneeInfo.avatarUrl
+        } : null,
+        createdBy: createdByInfo ? {
+          _id: createdByInfo._id,
+          name: createdByInfo.name,
+          email: createdByInfo.email,
+          avatarUrl: createdByInfo.avatarUrl
+        } : null
+      };
+
+      res.status(200).json({
+        success: true,
+        message: 'Task priority updated successfully (demo mode)',
+        data: {
+          task: responseTask
+        }
+      });
+    }
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Duplicate task
+ * @route   POST /api/tasks/:id/duplicate
+ * @access  Private
+ */
+const duplicateTask = async (req, res, next) => {
+  try {
+    const isMongoConnected = mongoose.connection.readyState === 1 && Task;
+    let originalTask;
+
+    if (isMongoConnected) {
+      // MongoDB implementation
+      originalTask = await Task.findById(req.params.id)
+        .populate('assignee', 'name email avatarUrl')
+        .populate('createdBy', 'name email avatarUrl');
+    } else {
+      // Memory store implementation
+      originalTask = memoryStore.tasks.findById(req.params.id);
+      if (originalTask) {
+        // Add assignee and creator info
+        const assignee = memoryStore.users.findById(originalTask.assignee);
+        const createdBy = memoryStore.users.findById(originalTask.createdBy);
+        
+        originalTask = {
+          ...originalTask,
+          assignee: assignee ? {
+            _id: assignee._id,
+            name: assignee.name,
+            email: assignee.email,
+            avatarUrl: assignee.avatarUrl
+          } : null,
+          createdBy: createdBy ? {
+            _id: createdBy._id,
+            name: createdBy.name,
+            email: createdBy.email,
+            avatarUrl: createdBy.avatarUrl
+          } : null
+        };
+      }
+    }
+
+    if (!originalTask) {
       return res.status(404).json({
         success: false,
         error: 'Task not found'
       });
     }
 
-    // Check if user can modify this task
-    if (!req.checkOwnership(task)) {
+    // Check if user can access this task
+    const canAccess = originalTask.assignee && (originalTask.assignee._id == req.user._id || originalTask.assignee == req.user._id) ||
+                     originalTask.createdBy && (originalTask.createdBy._id == req.user._id || originalTask.createdBy == req.user._id);
+    
+    if (!canAccess) {
       return res.status(403).json({
         success: false,
-        error: 'Access denied. You can only modify tasks assigned to you or created by you.'
+        error: 'Access denied. You can only duplicate tasks assigned to you or created by you.'
       });
     }
 
-    // Update task priority and position
-    const updateData = { priority };
-    if (position !== undefined) {
-      updateData.position = position;
+    if (isMongoConnected) {
+      // MongoDB implementation
+      // Get the next position for this priority
+      const lastTask = await Task.findOne({
+        assignee: req.user._id,
+        priority: originalTask.priority,
+        isArchived: false
+      }).sort({ position: -1 });
+
+      const position = lastTask ? lastTask.position + 1 : 0;
+
+      const duplicatedTask = await Task.create({
+        title: `${originalTask.title} (Copy)`,
+        description: originalTask.description,
+        dueDate: originalTask.dueDate,
+        priority: originalTask.priority,
+        status: 'pending', // Reset status to pending
+        assignee: req.user._id, // Assign to current user
+        createdBy: req.user._id,
+        position,
+        tags: originalTask.tags || []
+      });
+
+      // Populate the task before sending response
+      await duplicatedTask.populate('assignee', 'name email avatarUrl');
+      await duplicatedTask.populate('createdBy', 'name email avatarUrl');
+
+      res.status(201).json({
+        success: true,
+        message: 'Task duplicated successfully',
+        data: {
+          task: duplicatedTask
+        }
+      });
+    } else {
+      // Memory store implementation
+      // Get the next position for this priority
+      const existingTasks = memoryStore.tasks.findByAssignee(req.user._id)
+        .filter(task => task.priority === originalTask.priority);
+      const position = existingTasks.length;
+
+      const duplicatedTask = memoryStore.tasks.create({
+        title: `${originalTask.title} (Copy)`,
+        description: originalTask.description,
+        dueDate: originalTask.dueDate,
+        priority: originalTask.priority,
+        status: 'pending', // Reset status to pending
+        assignee: req.user._id, // Assign to current user
+        createdBy: req.user._id,
+        position,
+        tags: originalTask.tags || []
+      });
+
+      // Add assignee and creator info for response
+      const assignee = memoryStore.users.findById(req.user._id);
+      const responseTask = {
+        ...duplicatedTask,
+        assignee: {
+          _id: assignee._id,
+          name: assignee.name,
+          email: assignee.email,
+          avatarUrl: assignee.avatarUrl
+        },
+        createdBy: {
+          _id: assignee._id,
+          name: assignee.name,
+          email: assignee.email,
+          avatarUrl: assignee.avatarUrl
+        }
+      };
+
+      res.status(201).json({
+        success: true,
+        message: 'Task duplicated successfully (demo mode)',
+        data: {
+          task: responseTask
+        }
+      });
     }
-
-    task = await Task.findByIdAndUpdate(
-      req.params.id,
-      updateData,
-      {
-        new: true,
-        runValidators: true
-      }
-    )
-    .populate('assignee', 'name email avatarUrl')
-    .populate('createdBy', 'name email avatarUrl');
-
-    res.status(200).json({
-      success: true,
-      message: 'Task priority updated successfully',
-      data: {
-        task
-      }
-    });
   } catch (error) {
     next(error);
   }
@@ -517,29 +880,68 @@ const updateTaskPriority = async (req, res, next) => {
  */
 const deleteTask = async (req, res, next) => {
   try {
-    const task = await Task.findById(req.params.id);
+    const isMongoConnected = mongoose.connection.readyState === 1 && Task;
+    let task;
 
-    if (!task) {
-      return res.status(404).json({
-        success: false,
-        error: 'Task not found'
+    if (isMongoConnected) {
+      // MongoDB implementation
+      task = await Task.findById(req.params.id);
+
+      if (!task) {
+        return res.status(404).json({
+          success: false,
+          error: 'Task not found'
+        });
+      }
+
+      // Check if user can delete this task
+      if (!req.checkOwnership(task)) {
+        return res.status(403).json({
+          success: false,
+          error: 'Access denied. You can only delete tasks assigned to you or created by you.'
+        });
+      }
+
+      await Task.findByIdAndDelete(req.params.id);
+
+      res.status(200).json({
+        success: true,
+        message: 'Task deleted successfully'
+      });
+    } else {
+      // Memory store implementation
+      task = memoryStore.tasks.findById(req.params.id);
+
+      if (!task) {
+        return res.status(404).json({
+          success: false,
+          error: 'Task not found'
+        });
+      }
+
+      // Check if user can delete this task
+      const canDelete = task.assignee == req.user._id || task.createdBy == req.user._id;
+      if (!canDelete) {
+        return res.status(403).json({
+          success: false,
+          error: 'Access denied. You can only delete tasks assigned to you or created by you.'
+        });
+      }
+
+      const deleted = memoryStore.tasks.delete(req.params.id);
+
+      if (!deleted) {
+        return res.status(404).json({
+          success: false,
+          error: 'Task not found'
+        });
+      }
+
+      res.status(200).json({
+        success: true,
+        message: 'Task deleted successfully (demo mode)'
       });
     }
-
-    // Check if user can delete this task
-    if (!req.checkOwnership(task)) {
-      return res.status(403).json({
-        success: false,
-        error: 'Access denied. You can only delete tasks assigned to you or created by you.'
-      });
-    }
-
-    await Task.findByIdAndDelete(req.params.id);
-
-    res.status(200).json({
-      success: true,
-      message: 'Task deleted successfully'
-    });
   } catch (error) {
     next(error);
   }
@@ -618,6 +1020,7 @@ module.exports = {
   updateTask,
   updateTaskStatus,
   updateTaskPriority,
+  duplicateTask,
   deleteTask,
   getTaskStats
 };

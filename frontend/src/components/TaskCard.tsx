@@ -1,9 +1,16 @@
 import React from 'react';
 import { formatDistanceToNow, parseISO, format } from 'date-fns';
-import { Calendar, User, MoreHorizontal, CheckCircle, Circle, Clock } from 'lucide-react';
+import { Calendar, User, MoreHorizontal, CheckCircle, Circle, Clock, Edit2, Trash2, Copy } from 'lucide-react';
 
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import type { ITask, Priority, Status } from '@/types';
 import { cn } from '@/lib/utils';
 
@@ -11,6 +18,7 @@ interface TaskCardProps {
   task: ITask;
   onEdit: (task: ITask) => void;
   onDelete: (taskId: string) => void;
+  onDuplicate?: (task: ITask) => void;
   onStatusChange: (taskId: string, status: Status) => void;
   onCardClick: (taskId: string) => void;
   isDragging?: boolean;
@@ -49,6 +57,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
   task,
   onEdit,
   onDelete,
+  onDuplicate,
   onStatusChange,
   onCardClick,
   isDragging = false,
@@ -75,7 +84,16 @@ const TaskCard: React.FC<TaskCardProps> = ({
 
   const handleDeleteClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    onDelete(task._id);
+    if (window.confirm('Are you sure you want to delete this task? This action cannot be undone.')) {
+      onDelete(task._id);
+    }
+  };
+
+  const handleDuplicateClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onDuplicate) {
+      onDuplicate(task);
+    }
   };
 
   const formatDueDate = (dueDate: string) => {
@@ -111,14 +129,38 @@ const TaskCard: React.FC<TaskCardProps> = ({
           </button>
           
           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6"
-              onClick={handleEditClick}
-            >
-              <MoreHorizontal className="w-3 h-3" />
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <MoreHorizontal className="w-3 h-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={handleEditClick}>
+                  <Edit2 className="w-4 h-4 mr-2" />
+                  Edit Task
+                </DropdownMenuItem>
+                {onDuplicate && (
+                  <DropdownMenuItem onClick={handleDuplicateClick}>
+                    <Copy className="w-4 h-4 mr-2" />
+                    Duplicate Task
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem 
+                  onClick={handleDeleteClick}
+                  className="text-destructive focus:text-destructive"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete Task
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 

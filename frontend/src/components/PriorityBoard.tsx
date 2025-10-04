@@ -2,22 +2,24 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import PriorityColumn from '@/components/PriorityColumn';
-import { useBoardData, useDeleteTask, useUpdateTaskStatus } from '@/hooks/useTasks';
+import { useBoardData, useDeleteTask, useUpdateTaskStatus, useDuplicateTask } from '@/hooks/useTasks';
 import type { ITask, Priority, Status } from '@/types';
 
 interface PriorityBoardProps {
   onAddTask: (priority: Priority) => void;
   onEditTask: (task: ITask) => void;
+  onDuplicateTask?: (task: ITask) => void;
 }
 
 const priorities: Priority[] = ['high', 'medium', 'low', 'backlog'];
 
-const PriorityBoard: React.FC<PriorityBoardProps> = ({ onAddTask, onEditTask }) => {
+const PriorityBoard: React.FC<PriorityBoardProps> = ({ onAddTask, onEditTask, onDuplicateTask }) => {
   const navigate = useNavigate();
   
   const { data: boardData, isLoading, refetch } = useBoardData();
   const updateTaskStatusMutation = useUpdateTaskStatus();
   const deleteTaskMutation = useDeleteTask();
+  const duplicateTaskMutation = useDuplicateTask();
 
   const handleTaskClick = (taskId: string) => {
     navigate(`/tasks/${taskId}`);
@@ -41,6 +43,15 @@ const PriorityBoard: React.FC<PriorityBoardProps> = ({ onAddTask, onEditTask }) 
         console.error('Failed to delete task:', error);
         // You might want to show a toast notification here
       }
+    }
+  };
+
+  const handleDuplicateTask = async (task: ITask) => {
+    try {
+      await duplicateTaskMutation.mutateAsync(task._id);
+    } catch (error) {
+      console.error('Failed to duplicate task:', error);
+      // You might want to show a toast notification here
     }
   };
 
@@ -85,6 +96,7 @@ const PriorityBoard: React.FC<PriorityBoardProps> = ({ onAddTask, onEditTask }) 
             isLoading={false}
             onAddTask={onAddTask}
             onEditTask={onEditTask}
+            onDuplicateTask={onDuplicateTask || handleDuplicateTask}
             onDeleteTask={handleDeleteTask}
             onStatusChange={handleStatusChange}
             onTaskClick={handleTaskClick}

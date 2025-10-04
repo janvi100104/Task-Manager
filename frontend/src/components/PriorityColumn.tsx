@@ -17,6 +17,7 @@ interface PriorityColumnProps {
   onAddTask: (priority: Priority) => void;
   onEditTask: (task: ITask) => void;
   onDeleteTask: (taskId: string) => void;
+  onDuplicateTask?: (task: ITask) => void;
   onStatusChange: (taskId: string, status: Status) => void;
   onTaskClick: (taskId: string) => void;
   onLoadMore: () => void;
@@ -63,6 +64,7 @@ const PriorityColumn: React.FC<PriorityColumnProps> = ({
   onAddTask,
   onEditTask,
   onDeleteTask,
+  onDuplicateTask,
   onStatusChange,
   onTaskClick,
   onLoadMore,
@@ -136,6 +138,7 @@ const PriorityColumn: React.FC<PriorityColumnProps> = ({
               task={task}
               onEdit={onEditTask}
               onDelete={onDeleteTask}
+              onDuplicate={onDuplicateTask}
               onStatusChange={onStatusChange}
               onCardClick={onTaskClick}
             />

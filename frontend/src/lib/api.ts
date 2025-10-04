@@ -221,6 +221,14 @@ class ApiClient {
     return response.data.data.task;
   }
 
+  async duplicateTask(id: string): Promise<ITask> {
+    const response = await this.client.post<ApiResponse<{ task: ITask }>>(`/tasks/${id}/duplicate`);
+    if (!response.data.success || !response.data.data) {
+      throw new Error('Failed to duplicate task');
+    }
+    return response.data.data.task;
+  }
+
   async deleteTask(id: string): Promise<void> {
     const response = await this.client.delete<ApiResponse>(`/tasks/${id}`);
     if (!response.data.success) {
